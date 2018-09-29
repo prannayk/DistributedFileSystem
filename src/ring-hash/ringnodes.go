@@ -1,4 +1,4 @@
-package main
+package ringnodes
 
 import (
 	"fmt"			// standard input, output etc
@@ -7,7 +7,7 @@ import (
 	"sync"			// sync muting, allowing concurrency
 	"sync/atomic" 	// atomic operations
 	rbt "github.com/arriqaaq/rbt"
-	sha "crypto/sha256"
+	xxhash "github.com/cespare/xxhash"
 )
 
 
@@ -15,6 +15,8 @@ var (
 	ERR_EMPTY_RING = errors.New("Empty ring")
 	ERR_KEY_NOT_FOUND = errors.New("Key was not found in the ring")
 	ERR_HEAVY_LOAD = errors.New("Servers under load, retry after a while")
+	ERR_UNLOADED_HOST = errors.New("Can not find jobs on the said cluster")
+	ERR_UNLOADED_SERVER = errors.New("Can not find jobs on the said node")
 )
 
 type hashFunction interface {
@@ -26,19 +28,18 @@ type sha256HashFunction struct {
 }
 
 func (x sha256HashFunction) hash(data string) int64 {
-	shaHash := sha.Sum256([]byte(data))
-	start := int64(shaHash[0])
-	for byt := range shaHash[1:] {
-		start <<= 3;
-		start += int64(byt)
-		fmt.Println(start)
-	}
-	return start
+	xhash := xxhash.New()
+	xhash.Write([]byte(data))
+	r := xhash.Sum64()
+	xhash.Reset()
+	return int64(r)
 }
 
 func newHashFunction() hashFunction {
 	return sha256HashFunction{}
 }
+
+
 
 // End of code of hash function
 // Starting code for Node from here 
@@ -49,7 +50,7 @@ type node struct {
 	load int64 								// load count
 }
 
-func (n node) Load() int64 {
+func (n *node) Load() int64 {
 	return n.load
 }
 
@@ -88,11 +89,10 @@ type Ring struct {
 
 
 // code for adding a node in the ring
-func (r Ring) Add(node string){
+func (r *Ring) Add(node string){
 	r.mu.Lock()
 	defer r.mu.Unlock()						// given a fair scheduler, this will execute before any other statement
 	if _, ok := r.nodeMap[node] ;  !ok {
-		fmt.Printf("Going into add for %s\n", node)
 		r.nodeMap[node] = newNode(node); 	// adding original, true node to the ring
 		hashKey := r.hashfn.hash(node);			// adding mapping for the ring from the RBT
 		r.store.Insert(hashKey, node);		
@@ -100,15 +100,13 @@ func (r Ring) Add(node string){
 			vNodeKey := fmt.Sprintf("%s-%d", node, i)
 			r.nodeMap[vNodeKey] = newNode(vNodeKey)		// create a node present on every virtualNode corresponding to a given node
 			hashKey := r.hashfn.hash(vNodeKey)
-			fmt.Println(hashKey)
 			r.store.Insert(hashKey, node)				// store name of the node using hashKey
 		}
-		fmt.Println(r.store.Size())
 	}
 
 }
 
-func (r Ring) Remove(key string) {
+func (r *Ring) Remove(key string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.nodeMap[key] ; !ok {
@@ -125,7 +123,7 @@ func (r Ring) Remove(key string) {
 	}
 }
 
-func (r Ring) checkLoad(key string) bool {
+func (r *Ring) checkLoad(key string) bool {
 	if r.TotalLoad < 0 {
 		r.TotalLoad = 0
 	}
@@ -146,7 +144,7 @@ func (r Ring) checkLoad(key string) bool {
 	return true
 }
 
-func (r Ring) Get (key string) (string, error){
+func (r *Ring) Get (key string) (string, error){
 	r.mu.RLock()											// block reading, blocks for WUnlock on other threads
 	defer r.mu.RUnlock()
 	if r.store.Size() == 0 {
@@ -161,7 +159,7 @@ func (r Ring) Get (key string) (string, error){
 			fmt.Println("Looked through everything, could not find free node")
 			return "", ERR_HEAVY_LOAD
 		}
-		if hashKey > q.GetKey() {
+		if hashKey > q.GetKey()  {							// find next bucket in ring
 			g := rbt.FindSuccessor(q)
 			if g != nil {
 				q = g
@@ -173,7 +171,7 @@ func (r Ring) Get (key string) (string, error){
 			break; 											// found a node where we can work
 		}
 		count ++;
-		h := rbt.FindSuccessor(q)
+		h := rbt.FindSuccessor(q)							// go to the beginning if you can not find it
 		if h != nil {
 			q = h
 		} else {
@@ -183,6 +181,23 @@ func (r Ring) Get (key string) (string, error){
 	atomic.AddInt64(&r.nodeMap[q.GetValue()].load, 1)
 	atomic.AddInt64(&r.TotalLoad, 1)
 	return q.GetValue(), nil
+}
+
+func (r *Ring) Done (key string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if _, ok := r.nodeMap[key] ; !ok {
+		return ERR_KEY_NOT_FOUND
+	}
+	if r.nodeMap[key].load <= 0 {
+		return ERR_UNLOADED_SERVER
+	}
+	if r.TotalLoad <= 0 {
+		return ERR_UNLOADED_HOST
+	}
+	atomic.AddInt64(&r.nodeMap[key].load, -1)
+	atomic.AddInt64(&r.TotalLoad, -1)
+	return nil
 }
 
 func NewRing() *Ring {
@@ -231,8 +246,8 @@ func testRingInitComplete() {
 	cfg.LoadFactor = 4
 	ring := NewRingWithConfig(nodeList, cfg)
 	ring.Remove("node1")
-	fmt.Println(ring.store.Size())
 	fmt.Println(ring.Get("node3"))
+	fmt.Println(ring.Done("node3"))
 }
 
 func main() {
