@@ -1,0 +1,4 @@
+
+test : 
+	go build 
+	./dht
