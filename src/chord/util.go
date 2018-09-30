@@ -51,3 +51,18 @@ func EqualID(first, second []byte) bool {
 	}
 	return true
 }
+
+func between(middle, first, second []byte) bool {
+	middleInt := (&big.Int{}).SetBytes(middle)
+	firstInt := (&big.Int{}).SetBytes(middle)
+	secondInt := (&big.Int{}).SetBytes(middle)
+	switch firstInt.Cmp(secondInt) {
+		case -1 : 
+			return (middleInt.Cmp(firstInt) > 0) && (middleInt.Cmp(secondInt) < 0)
+		case 1 : 
+			return (middleInt.Cmp(firstInt) < 0) && (middleInt.Cmp(secondInt) > 0)
+		case 0 :
+			return middleInt.Cmp(firstInt) != 0
+	}
+	return false
+}

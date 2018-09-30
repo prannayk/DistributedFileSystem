@@ -34,10 +34,59 @@ type NodeOptions struct {
 	DialOptions 	[]grpc.DialOption
 }
 
-
+// Following 3 functions have been implemented from the paper
+// They follow the exact methods, except the involvement of RPC
 func (node *Node) FindSuccessor(nextHash []byte) (*Node, error) {
-	// TODO(prannayk) : unimplemented method
-	return node, nil;
+	pred , err := node.FindPredecessor(nextHash)
+	if err != nil {
+		return nil, err
+	}
+	if pred.Name == "" {
+		return node, nil
+	}
+	succ, err := node.GetSuccessorRPC(pred)
+	if err != nil {
+		return nil, err
+	}
+	if succ.Name == "" {
+		return node, nil
+	}
+	return succ, nil;
+}
+
+func (node *Node) FindPredecessor(nextHash []byte) (*Node, error) {
+	pred := node
+	for {
+		succ, _ := pred.GetSuccessorRPC(pred)
+		if succ == nil || succ.Name == "" {
+			return pred, nil
+		}
+		if between(nextHash, pred.Id, succ.Id) {
+			break
+		}
+		pred,err := pred.ClosestPrecedingFingerRPC(nextHash)
+		if err != nil {
+			return nil, err
+		}
+		if pred.Name == "" {
+			return node, nil
+		}
+	}
+	return pred, nil
+}
+
+func (node *Node) ClosestPrecedingFinger(nextHash []byte) *Node {
+	node.FTMutex.Lock()
+	defer node.FTMutex.Unlock()
+	for i := range node.FingerTable {
+		if node.FingerTable[i].RemoteNode == nil {
+			continue
+		}
+		if between(node.FingerTable[i].RemoteNode.Id, node.Id, nextHash) {
+			return node.FingerTable[i].RemoteNode
+		}
+	}
+	return node
 }
 
 type NodeOption func(o *NodeOptions)
@@ -155,10 +204,6 @@ func NewNodeFromParent(parent * Node, opts ... NodeOption) (* Node , error) {
 }
 
 
-func (node *Node) stabilize() {
-	fmt.Println("Unimplemented method called");
-}
-
 func (node * Node) Join(parent * Node) error {
 	succ, err := node.FindSuccessorRPC(parent, node.Id)
 	if err != nil {
@@ -181,6 +226,88 @@ func (node *Node) ObtainNewKeys() error {
 	}
 	return node.TransferKeysRPC(succ, prevPredecessor, node.Id)
 }
+
+func (node *Node) stabilize(){
+	node.succMtx.RLock()
+	_succ := node.Successor
+	node.succMtx.RUnlock()
+	if _succ == nil {
+		return
+	}
+	
+	succ, err := node.GetPredecessorRPC(_succ)
+	if succ == nil || err != nil {
+
+		return 
+	}
+	if succ.Id != nil && between(succ.Id, node.Id, _succ.Id) {
+		node.succMtx.Lock()
+		node.Successor = succ
+		node.succMtx.Unlock()
+	}
+
+	_ = node.NotifyRPC(_succ, node)				// at this step we inform the old successor that it has beenr reset
+}	
+
+func (node *Node) notify(remoteNode *Node){
+	node.predMtx.Lock()
+	defer node.predMtx.Unlock()
+	pred := node.Pred
+	if pred != nil && !between(remoteNode.Id, node.Pred.Id, node.Id) {
+		return
+	}
+	var PrevID []byte
+	if pred != nil {
+		PrevID = pred.Id
+	}
+	node.Pred = remoteNode
+	if between(node.Pred.Id, PrevID, node.Id){
+		_ = node.TransferKeys(PrevID, node.Pred)
+	}
+}
+
+func (node *Node) ShutDown() {
+	close(node.ShutDownChannel)
+	node.GRPCServer.Stop()
+	node.succMtx.RLock()
+	node.predMtx.RLock()
+	if node.Name != node.Successor.Name && node.Pred != nil {
+		_ = node.TransferKeys(node.Pred.Id, node.Successor)
+		_ = node.SetSuccessorRPC(node.Pred, node.Successor)
+		_ = node.SetPredecessorRPC(node.Successor, node.Pred)
+	}
+	node.predMtx.RUnlock()
+	node.succMtx.RUnlock()
+
+	node.CCMtx.Lock()
+	for _, conn := range node.ClientConnections {
+		_ = conn.conn.Close()
+	}
+	defer node.CCMtx.Unlock()
+}
+
+func (node *Node) String() string {
+	var succ []byte
+	var pred []byte
+
+	node.succMtx.RLock()
+	if node.Successor != nil {
+		succ = node.Successor.Id
+	}	
+	node.succMtx.RUnlock()
+
+	node.predMtx.RLock()
+	if node.Pred != nil {
+		pred = node.Pred.Id
+	}
+	node.predMtx.RUnlock()
+
+	return fmt.Sprintf("Node-%v : Address : %s {succ :%v, pred : %v}",
+						IDToString(node.Id), node.Name,
+						IDToString(succ), IDToString(pred),
+						)
+}
+
 
 func NewNode(id []byte, Name string) *Node {
 	n := &Node {}
