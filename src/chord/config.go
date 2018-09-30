@@ -7,6 +7,8 @@ import (
 	"time"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
+	"math/big"
+	"sync"
 )
 
 const hashKeySizeDefault = 64
@@ -37,7 +39,7 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
-func DefaultConfig () Config {
+func DefaultConfig () *Config {
 	return &Config{
 		KeySize : hashKeySizeDefault,
 		IDLength : hashKeySizeDefault / 8,
@@ -46,6 +48,54 @@ func DefaultConfig () Config {
 		RetryInterval : 200 * time.Millisecond,
 		ConnectionTimeout : 1000 * time.Millisecond,
 		DialOption : []grpc.DialOption{grpc.WithInsecure(),},
-		Log : log.New(os.stderr, "DHT : ", log.LstdFlags), 			// last part copied verbose, not set correctly
+		Log : log.New(os.Stderr, "DHT : ", log.LstdFlags), 			// last part copied verbose, not set correctly
 	}
+}
+
+var ERR_SET_CONFIG = errors.New("DHT : Cannot set configuration more than once")
+
+var config struct {  			// using anon struct
+	Config
+	Max *big.Int
+	SyncOnce 	sync.Once
+}
+
+var Log grpclog.Logger
+
+func init () {
+	InitializeSet(DefaultConfig())
+}
+
+func InitializeSet(cfg *Config){				// same functionality as setter in the following function
+	if err := cfg.Validate(); err != nil {
+		config.Log.Fatalf("Error setting the configuration : %v", err);
+	}
+	
+	config.Config = *cfg
+	config.Max = GetMax()
+	Log = config.Log
+
+}
+
+func Init(cfg *Config) error {
+	err := ERR_SET_CONFIG
+	config.SyncOnce.Do(func() {						// functionality unclear
+		if err := cfg.Validate(); err != nil {
+			return
+		}
+	
+		config.Config = *cfg
+		config.Max = GetMax()
+		Log = config.Log
+	})
+	return err
+}
+
+func GetMax() *big.Int {						// creates the value 2^m modulo which we store the keys in fingerTable
+	max := big.NewInt(2)
+	b2 := big.NewInt(2)
+	for i := 0 ; i < config.KeySize ; i++ {
+		max.Mul(max, b2)
+	}
+	return max
 }
