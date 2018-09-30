@@ -39,3 +39,15 @@ func TestID() {
 	t = []byte("qwertyuiop[asdfghjklzxcvbnmqwertyuioasdfghjklzxcvvbnbmyuawteiujkhalkjsdfhalksdjhfalksdjfh")
 	fmt.Println(len(PadID(t)), PadID(t), IDToString(PadID(t)))
 }
+
+func EqualID(first, second []byte) bool {
+	if len(first) != len(second) {	
+		return false
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			return false
+		}
+	}
+	return true
+}
