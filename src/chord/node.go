@@ -1,7 +1,7 @@
 package main
 
 import (
-	"node"
+	"github.com/prannayk/DistributedFileSystem/src/node"
 	"sync"
 )
 	
