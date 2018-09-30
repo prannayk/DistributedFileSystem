@@ -15,8 +15,8 @@ import (
 const hashKeySizeDefault = 64
 
 var (
-	ErrBadKeyLen = errors.New("Key length must be word aligned")
-	ErrBadIDLen = errors.New("ID must key length in number of bytes")
+	ERR_BAD_KEY_LEN = errors.New("Key length must be word aligned")
+	ERR_BAD_ID_LEN = errors.New("ID must key length in number of bytes")
 )
 
 type Config struct {
@@ -32,10 +32,10 @@ type Config struct {
 
 func (cfg *Config) Validate() error {
 	if cfg.KeySize %8 != 0 {
-		return ErrBadKeyLen
+		return ERR_BAD_KEY_LEN
 	}
 	if cfg.IDLength != cfg.KeySize / 8 {
-		return ErrBadIDLen
+		return ERR_BAD_ID_LEN
 	}
 	return nil
 }

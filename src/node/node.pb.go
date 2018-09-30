@@ -6,6 +6,8 @@ package ChordStructure
 import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
 	math "math"
 )
 
@@ -660,4 +662,183 @@ var fileDescriptor_a18530e439628818 = []byte{
 	0x22, 0x99, 0x34, 0x77, 0x1c, 0xb7, 0x40, 0xfc, 0xdb, 0x99, 0x5b, 0xe9, 0xb1, 0x83, 0x49, 0xfd,
 	0x6a, 0x18, 0x92, 0xfa, 0xb5, 0x96, 0xbf, 0xea, 0xf2, 0x7b, 0x3a, 0xff, 0x09, 0x00, 0x00, 0xff,
 	0xff, 0x0f, 0xb1, 0x77, 0x91, 0x62, 0x03, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// ChordDHTClient is the client API for ChordDHT service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ChordDHTClient interface {
+	// GetID returns the ID of the node
+	GETID(ctx context.Context, in *GetIDRequest, opts ...grpc.CallOption) (*GetIDResponse, error)
+	// Locate a key
+	Locate(ctx context.Context, in *LocateRequest, opts ...grpc.CallOption) (*LocateResponse, error)
+	// Get returns value in the ring
+	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	// Put writes a key value pair to the Chord ring
+	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
+}
+
+type chordDHTClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewChordDHTClient(cc *grpc.ClientConn) ChordDHTClient {
+	return &chordDHTClient{cc}
+}
+
+func (c *chordDHTClient) GETID(ctx context.Context, in *GetIDRequest, opts ...grpc.CallOption) (*GetIDResponse, error) {
+	out := new(GetIDResponse)
+	err := c.cc.Invoke(ctx, "/ChordStructure.ChordDHT/GETID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordDHTClient) Locate(ctx context.Context, in *LocateRequest, opts ...grpc.CallOption) (*LocateResponse, error) {
+	out := new(LocateResponse)
+	err := c.cc.Invoke(ctx, "/ChordStructure.ChordDHT/Locate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordDHTClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+	out := new(GetResponse)
+	err := c.cc.Invoke(ctx, "/ChordStructure.ChordDHT/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordDHTClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
+	out := new(PutResponse)
+	err := c.cc.Invoke(ctx, "/ChordStructure.ChordDHT/Put", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ChordDHTServer is the server API for ChordDHT service.
+type ChordDHTServer interface {
+	// GetID returns the ID of the node
+	GETID(context.Context, *GetIDRequest) (*GetIDResponse, error)
+	// Locate a key
+	Locate(context.Context, *LocateRequest) (*LocateResponse, error)
+	// Get returns value in the ring
+	Get(context.Context, *GetRequest) (*GetResponse, error)
+	// Put writes a key value pair to the Chord ring
+	Put(context.Context, *PutRequest) (*PutResponse, error)
+}
+
+func RegisterChordDHTServer(s *grpc.Server, srv ChordDHTServer) {
+	s.RegisterService(&_ChordDHT_serviceDesc, srv)
+}
+
+func _ChordDHT_GETID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordDHTServer).GETID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ChordStructure.ChordDHT/GETID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordDHTServer).GETID(ctx, req.(*GetIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChordDHT_Locate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LocateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordDHTServer).Locate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ChordStructure.ChordDHT/Locate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordDHTServer).Locate(ctx, req.(*LocateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChordDHT_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordDHTServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ChordStructure.ChordDHT/Get",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordDHTServer).Get(ctx, req.(*GetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChordDHT_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordDHTServer).Put(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ChordStructure.ChordDHT/Put",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordDHTServer).Put(ctx, req.(*PutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _ChordDHT_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "ChordStructure.ChordDHT",
+	HandlerType: (*ChordDHTServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GETID",
+			Handler:    _ChordDHT_GETID_Handler,
+		},
+		{
+			MethodName: "Locate",
+			Handler:    _ChordDHT_Locate_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _ChordDHT_Get_Handler,
+		},
+		{
+			MethodName: "Put",
+			Handler:    _ChordDHT_Put_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "node/node.proto",
 }

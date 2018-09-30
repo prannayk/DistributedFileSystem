@@ -53,8 +53,8 @@ func (ft fingerTable) String() string {				// converts fingerTable to string, te
 }
 
 func (node *Node) FingerTableString() string { 			// Go routine safe wrapper
-	node.Mutex.RLock()
-	defer node.Mutex.RUnlock()
+	node.FTMutex.RLock()
+	defer node.FTMutex.RUnlock()
 	return node.FingerTable.String()
 }
 
@@ -65,9 +65,9 @@ func (node *Node) FixNextFinger(next int) int {			// gets the nextfinger in ring
 		return next
 	}
 	finger := newFingerEntry(nextHash, succ)
-	node.Mutex.Lock()
+	node.FTMutex.Lock()
 	node.FingerTable[next] = finger
-	node.Mutex.Unlock()
+	node.FTMutex.Unlock()
 	return (next + 1) % config.KeySize
 }
 
