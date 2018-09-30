@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"errors"
 	"log"
 	"os"
@@ -62,11 +63,11 @@ var config struct {  			// using anon struct
 
 var Log grpclog.Logger
 
-func init () {
-	InitializeSet(DefaultConfig())
+func InitConfigWrapper () {
+	InitializeConfig(DefaultConfig())
 }
 
-func InitializeSet(cfg *Config){				// same functionality as setter in the following function
+func InitializeConfig(cfg *Config){				// same functionality as setter in the following function
 	if err := cfg.Validate(); err != nil {
 		config.Log.Fatalf("Error setting the configuration : %v", err);
 	}
@@ -77,7 +78,7 @@ func InitializeSet(cfg *Config){				// same functionality as setter in the follo
 
 }
 
-func Init(cfg *Config) error {
+func InitConfigOnce(cfg *Config) error {
 	err := ERR_SET_CONFIG
 	config.SyncOnce.Do(func() {						// functionality unclear
 		if err := cfg.Validate(); err != nil {
@@ -98,4 +99,11 @@ func GetMax() *big.Int {						// creates the value 2^m modulo which we store the
 		max.Mul(max, b2)
 	}
 	return max
+}
+
+func ConfigTest () {
+	InitConfigWrapper()
+	fmt.Println(config.Max)
+	fmt.Println(config.KeySize)
+	fmt.Println(config.ConnectionTimeout * 2)
 }
