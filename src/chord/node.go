@@ -5,6 +5,7 @@ import (
 	"google.golang.org/grpc"
 	"sync"
 	"net"
+	"golang.org/x/net/context"
 )
 	
 type Node struct {
@@ -29,6 +30,11 @@ type NodeOptions struct {
 	Name 			string
 	ServerOptions 	[]grpc.ServerOption
 	DialOptions 	[]grpc.DialOption
+}
+
+func (node *Node) GetData(ctx context.Context, key *ChordStructure.GetRequest) (*ChordStructure.GetResponse, error) {
+	val := []byte("HelloDhish")
+	return &ChordStructure.GetResponse{Value : val}, nil
 }
 
 func (node *Node) FindSuccessor(nextHash []byte) (*Node, error) {
@@ -84,14 +90,22 @@ func NewNodeFromParent(parent * Node, opts ... NodeOption) (* Node , error) {
 	}
 	node.GRPCServer = grpc.NewServer(node.Options.ServerOptions...)
 	// chord.RegisterChordServer(node.GRPCServer, node) 		// TODO : implement chord
-	ChordStructure.RegisterChordDHTServer(&node.GRPCServer, node)
+	// ChordStructure.RegisterChordDHTServer(node.GRPCServer, parent) 		// TODO : implement API
 
 	if id != nil {
 		if len(id) != config.IDLength {
 			return nil, ERR_BAD_ID_LEN
 		}
+	} else {
+		id, err := HashKey(lis.Addr().String())
+		if err != nil {
+			return nil, err
+		} 
+		node.Id = id
 	}
-
+	node.Name = lis.Addr().String()
+	node.DataStore = make(map[string][]byte)
+	// node.fingerTable = Ne
 	return node, nil
 }
 

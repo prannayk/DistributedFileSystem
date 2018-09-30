@@ -3,7 +3,18 @@ package main
 import (
 	"fmt"
 	"math/big"
+	xxhash "github.com/cespare/xxhash"
 )
+
+func HashKey (key string) ([]byte,error) {
+	h := xxhash.New()
+	if _, err := h.Write([]byte(key)) ; err != nil {
+		return nil, err
+	}
+	r := h.Sum(nil)
+	h.Reset()
+	return r[:config.IDLength], nil
+}
 
 func PadID(NodeID []byte) []byte {
 	n := config.IDLength - len(NodeID)

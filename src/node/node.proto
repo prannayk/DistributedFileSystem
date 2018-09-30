@@ -4,11 +4,11 @@ package ChordStructure;
 
 service ChordDHT {
     // GetID returns the ID of the node
-    rpc GETID(GetIDRequest) returns (GetIDResponse);
+    rpc GetID(GetIDRequest) returns (GetIDResponse);
     // Locate a key
     rpc Locate(LocateRequest) returns (LocateResponse);
     // Get returns value in the ring
-    rpc Get(GetRequest) returns (GetResponse);
+    rpc GetData(GetRequest) returns (GetResponse);
     // Put writes a key value pair to the Chord ring
     rpc Put(PutRequest) returns (PutResponse);
 }
