@@ -6,3 +6,6 @@ go :
 install:
     - go get -d ./...
     - cd src/chord/ && go build
+
+script:
+    - cd src/chord && go build 
